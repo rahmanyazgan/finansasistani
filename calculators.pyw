@@ -22,12 +22,25 @@ from PyQt5.QtWidgets import (
     QRadioButton, QButtonGroup, QTextEdit, QDoubleSpinBox, QSpinBox,
     QMessageBox, QFrame, QSizePolicy, QSpacerItem, QStatusBar,
     QMenuBar, QMenu, QAction, QActionGroup, QDialog, QTableWidget,
-    QTableWidgetItem, QHeaderView, QAbstractItemView, QScrollArea
+    QTableWidgetItem, QHeaderView, QAbstractItemView, QScrollArea, QFileDialog
 )
-from PyQt5.QtCore import Qt, QThread, pyqtSignal, QLocale, QTimer
-from PyQt5.QtGui import QFont, QIcon, QColor, QPalette, QDoubleValidator
+from PyQt5.QtCore import Qt, QThread, pyqtSignal, QLocale, QTimer, QSize
+from PyQt5.QtGui import QFont, QIcon, QColor, QPalette, QDoubleValidator, QPainter, QPixmap
+try:
+    from PyQt5.QtPrintSupport import QPrinter
+    HAS_PRINTER = True
+except ImportError:
+    HAS_PRINTER = False
 
 import requests
+try:
+    from PyQt5.QtChart import (
+        QChart, QChartView, QBarSet, QBarSeries, QLineSeries, 
+        QBarCategoryAxis, QValueAxis
+    )
+    HAS_CHART = True
+except ImportError:
+    HAS_CHART = False
 
 # ──────────────────────────────────────────────
 #  TEMA SİSTEMİ
@@ -60,10 +73,10 @@ THEMES = {
         "text_tab": "#a3d9a5", "result": "#fbbf24", "textedit": "#d1e7dd",
     },
     "Okyanus": {
-        "bg_main": "#0c1929", "bg_secondary": "#122d4f", "bg_input": "#1a3f6f",
-        "border": "#2563a0", "accent": "#06b6d4", "accent_hover": "#22d3ee",
-        "accent_pressed": "#0891b2", "text": "#ffffff", "text_muted": "#d0ecf4",
-        "text_tab": "#93c5e6", "result": "#fcd34d", "textedit": "#cce5ff",
+        "bg_main": "#050b14", "bg_secondary": "#0d1b2a", "bg_input": "#1b263b",
+        "border": "#1e3a5f", "accent": "#00d4ff", "accent_hover": "#33e0ff",
+        "accent_pressed": "#00a3cc", "text": "#ffffff", "text_muted": "#a9d6e5",
+        "text_tab": "#89c2d9", "result": "#00f5d4", "textedit": "#e0f1f4",
     },
     "Gün Batımı": {
         "bg_main": "#1f1115", "bg_secondary": "#3b1c27", "bg_input": "#55283a",
@@ -1307,12 +1320,31 @@ class TaxTab(QWidget):
             add_monthly_table([8, 9, 10, 11])
             lines.append("")
 
-        lines.append("═" * 65)
-        lines.append(f"  ✅ YILLIK TOPLAM İADE (Vergi Avantajı) : {vergi_iadesi:>10,.2f} ₺")
-        lines.append("═" * 65)
+        # Sigorta türlerini dinamik topla
+        policy_types = []
+        for w in self.poli_widgets:
+            ptype = w.tip_combo.currentText().split(" (")[0] # "Sağlık/Vefat" gibi
+            if ptype not in policy_types:
+                policy_types.append(ptype)
+        
+        # Sonuç verilerini bir sözlükte topla, tabloya da gönder
+        result_data = {
+            "toplam_prim": toplam_indirilecek_yillik,
+            "vergi_iadesi": vergi_iadesi,
+            "matrah_dusulen": indirim_uygulanacak_yillik,
+            "brut_aylik": brut_aylik,
+            "aylik_iade_listesi": aylik_farklar, # List[(iade, oran)]
+            "ay_isimleri": aylar,
+            "sigorta_turu": " / ".join(policy_types) if policy_types else "Belirtilmemiş",
+            "vergi_dilimi": f"%{marjinal * 100:.0f}",
+            "son_hesaplama": datetime.now().strftime("%d/%m/%Y"),
+            "yil": CURRENT_YEAR
+        }
 
-        self.last_full_result = "\n".join(lines)
+        self.last_result_data = result_data
         self.result_text.setVisible(True)
+        # Mevcut text özetini de ASCII olarak tutalım (panoya kopyalamak için)
+        self.last_full_result = "\n".join(lines)
         self.result_text.setPlainText(self.last_full_result)
         self.details_btn.setVisible(True)
         
@@ -1320,8 +1352,8 @@ class TaxTab(QWidget):
         self._show_details_popup()
 
     def _show_details_popup(self):
-        if hasattr(self, 'last_full_result') and self.last_full_result:
-            dlg = ResultDetailsDialog(self, self.last_full_result)
+        if hasattr(self, 'last_result_data'):
+            dlg = ResultDetailsDialog(self, self.last_result_data)
             dlg.exec_()
 
 
@@ -1499,45 +1531,265 @@ class TaxSettingsDialog(QDialog):
 
 
 class ResultDetailsDialog(QDialog):
-    """Hesaplama detaylarını ve kopyalama butonunu içeren pencere."""
-    def __init__(self, parent, text):
+    """Görseldeki gibi modern dashboard içeren sonuç penceresi."""
+    def __init__(self, parent, data):
         super().__init__(parent)
-        self.setWindowTitle("Hesaplama Detayları")
-        self.resize(600, 750)
+        self.setWindowTitle("Sigorta Primi Vergi İade Hesaplama")
+        self.resize(900, 850)
         
-        layout = QVBoxLayout(self)
-        
-        header = QLabel("📋 Hesaplama Özeti ve Detayları")
-        header.setStyleSheet("font-size: 14px; font-weight: bold; margin-bottom: 5px;")
-        layout.addWidget(header)
-        
-        self.text_edit = QTextEdit()
-        self.text_edit.setReadOnly(True)
-        self.text_edit.setPlainText(text)
-        # Fontu biraz daha okunaklı yapalım (Monospaced)
-        font = QFont("Consolas", 10)
-        if sys.platform == "darwin": # macOS için
-             font = QFont("Menlo", 10)
-        self.text_edit.setFont(font)
-        layout.addWidget(self.text_edit)
-        
-        btn_layout = QHBoxLayout()
-        
-        self.copy_btn = QPushButton("📋 Detayları Kopyala")
-        self.copy_btn.setMinimumHeight(40)
-        self.copy_btn.clicked.connect(self._copy_text)
-        btn_layout.addWidget(self.copy_btn)
-        
-        self.close_btn = QPushButton("Kapat")
-        self.close_btn.setMinimumHeight(40)
-        self.close_btn.clicked.connect(self.close)
-        btn_layout.addWidget(self.close_btn)
-        
-        layout.addLayout(btn_layout)
+        # Ana Layout (Koyu Arka Plan)
+        main_layout = QVBoxLayout(self)
+        main_layout.setContentsMargins(20, 20, 20, 20)
+        main_layout.setSpacing(20)
 
-    def _copy_text(self):
-        QApplication.clipboard().setText(self.text_edit.toPlainText())
-        QMessageBox.information(self, "Bilgi", "Hesaplama sonuçları panoya kopyalandı.")
+        # Üst Başlık (Görseldeki "2024 YILI ÖZETİ")
+        title_lbl = QLabel(f"{data['yil']} YILI ÖZETİ")
+        title_lbl.setStyleSheet("font-size: 20px; font-weight: bold; color: #ffffff;")
+        main_layout.addWidget(title_lbl)
+
+        # Üst Bölüm: Bilgi Kartları ve Özet Bilgiler (H-Box)
+        top_layout = QHBoxLayout()
+        top_layout.setSpacing(15)
+
+        # 1. Kolon: Bilgi Kartları
+        cards_layout = QVBoxLayout()
+        cards_layout.setSpacing(10)
+        
+        def create_card(title, value):
+            card = QFrame()
+            card.setFrameShape(QFrame.StyledPanel)
+            card.setMaximumHeight(100) # Özet kartları biraz daha ferah
+            card.setStyleSheet("""
+                QFrame {
+                    background-color: #122d4f;
+                    border: 1px solid #1e3a5f;
+                    border-radius: 10px;
+                }
+            """)
+            card_v = QVBoxLayout(card)
+            card_v.setContentsMargins(10, 10, 10, 10)
+            card_v.setSpacing(4)
+            t_lbl = QLabel(title.upper())
+            t_lbl.setStyleSheet("font-size: 10px; color: #a9d6e5; font-weight: bold;")
+            v_lbl = QLabel(f"₺ {value:,.2f}")
+            v_lbl.setStyleSheet("font-size: 19px; color: #ffffff; font-weight: bold;")
+            card_v.addWidget(t_lbl)
+            card_v.addWidget(v_lbl)
+            return card
+
+        cards_layout.addWidget(create_card("Toplam Prim Ödemesi", data['toplam_prim']))
+        cards_layout.addWidget(create_card("Hak Edilen Vergi İadesi", data['vergi_iadesi']))
+        cards_layout.addWidget(create_card("Matrahtan Düşülen Tutar", data['matrah_dusulen']))
+        
+        top_layout.addLayout(cards_layout, 1)
+
+        # 2. Kolon: Grafik Alanı (Görselde grafik var)
+        if HAS_CHART:
+            self.chart_view = QChartView()
+            self.chart_view.setRenderHint(QPainter.Antialiasing)
+            self.chart_view.setStyleSheet("background-color: #0c1929; border: 1px solid #1e3a5f; border-radius: 12px;")
+            self.chart_view.setMaximumHeight(320) # Grafik alanını büyüttük
+            
+            chart = QChart()
+            chart.setBackgroundVisible(False)
+            chart.setTitle("AYLIK VERGİ İADESİ VE PRİM DAĞILIMI")
+            chart.setTitleFont(QFont("Arial", 10, QFont.Bold))
+            chart.setTitleBrush(QColor("#a9d6e5"))
+            
+            # Veri setleri
+            set_iade = QBarSet("Vergi İadesi (₺)")
+            set_iade.setColor(QColor("#1b263b")) 
+            set_iade.setBorderColor(QColor("#00d4ff"))
+            
+            line_series = QLineSeries()
+            line_series.setName("İade Trendi (₺)")
+            line_series.setColor(QColor("#00f5d4"))
+            line_series.setPointsVisible(True) # Noktaları göster
+            
+            for i, (iade, oran) in enumerate(data['aylik_iade_listesi']):
+                set_iade.append(iade)
+                line_series.append(i, iade) # Sütunların tam ortasına (index i) denk gelir
+                
+            series = QBarSeries()
+            series.append(set_iade)
+            chart.addSeries(series)
+            chart.addSeries(line_series)
+            
+            # Eksenler
+            axis_x = QBarCategoryAxis()
+            short_months = [m[:3] for m in data['ay_isimleri']]
+            axis_x.append(short_months)
+            axis_x.setLabelsBrush(QColor("#a9d6e5"))
+            chart.addAxis(axis_x, Qt.AlignBottom)
+            series.attachAxis(axis_x)
+            line_series.attachAxis(axis_x)
+            
+            axis_y = QValueAxis()
+            max_v = max([x[0] for x in data['aylik_iade_listesi']]) if data['aylik_iade_listesi'] else 1000
+            axis_y.setRange(0, max_v * 1.3)
+            axis_y.setLabelsBrush(QColor("#a9d6e5"))
+            chart.addAxis(axis_y, Qt.AlignLeft)
+            series.attachAxis(axis_y)
+            line_series.attachAxis(axis_y)
+            
+            chart.legend().setVisible(True)
+            chart.legend().setAlignment(Qt.AlignBottom)
+            chart.legend().setLabelBrush(QColor("#a9d6e5"))
+            
+            self.chart_view.setChart(chart)
+            top_layout.addWidget(self.chart_view, 2)
+        else:
+            graph_placeholder = QFrame()
+            graph_placeholder.setStyleSheet("background-color: #0c1929; border: 1px solid #1e3a5f; border-radius: 12px;")
+            graph_v = QVBoxLayout(graph_placeholder)
+            graph_lbl = QLabel("Grafik Modülü Yüklü Değil (PyQtChart)")
+            graph_lbl.setStyleSheet("font-size: 11px; color: #a9d6e5; font-weight: bold;")
+            graph_lbl.setAlignment(Qt.AlignCenter)
+            graph_v.addWidget(graph_lbl)
+            graph_v.addStretch()
+            top_layout.addWidget(graph_placeholder, 2)
+
+        # 3. Kolon: Özet Bilgiler Paneli
+        info_panel = QFrame()
+        info_panel.setStyleSheet("background-color: #122d4f; border: 1px solid #1e3a5f; border-radius: 10px;")
+        info_panel.setMaximumHeight(320) # Yan paneli grafik ile eşitledik
+        info_v = QVBoxLayout(info_panel)
+        info_v.setContentsMargins(15, 15, 15, 15)
+        info_v.setSpacing(6)
+        
+        def add_info_row(title, value):
+            t = QLabel(title.upper())
+            t.setStyleSheet("font-size: 10px; color: #a9d6e5; font-weight: normal;")
+            v = QLabel(value)
+            v.setStyleSheet("font-size: 15px; color: #ffffff; font-weight: bold; margin-bottom: 4px;")
+            info_v.addWidget(t)
+            info_v.addWidget(v)
+
+        add_info_row("Sigorta Türü", data['sigorta_turu'])
+        add_info_row("Vergi Dilimi", data['vergi_dilimi'])
+        add_info_row("Son Hesaplama", data['son_hesaplama'])
+        info_v.addStretch()
+        
+        top_layout.addWidget(info_panel, 1)
+        main_layout.addLayout(top_layout)
+
+        # Orta Bölüm: Detay Tablosu
+        table_lbl = QLabel("AYLIK PRİM VE VERGİ İADE DETAYLARI")
+        table_lbl.setStyleSheet("font-size: 13px; font-weight: bold; color: #ffffff;")
+        main_layout.addWidget(table_lbl)
+
+        self.table = QTableWidget(12, 5)
+        self.table.setHorizontalHeaderLabels(["AY", "ÖDENEN PRİM (₺)", "MATRAH İNDİRİMİ (₺)", "VERGİ İADESİ (₺)", "DURUM"])
+        self.table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        self.table.setMinimumHeight(400) # Tabloyu daha büyük gösteriyoruz
+        self.table.setStyleSheet("""
+            QTableWidget {
+                background-color: #0c1929;
+                color: #ffffff;
+                border: 1px solid #1e3a5f;
+                gridline-color: #1b263b;
+                border-radius: 5px;
+            }
+            QHeaderView::section {
+                background-color: #1b263b;
+                color: #a9d6e5;
+                padding: 6px;
+                font-weight: bold;
+                border: none;
+            }
+            QTableWidget::item { padding: 5px; }
+        """)
+        
+        for i in range(12):
+            iade, oran = data['aylik_iade_listesi'][i]
+            self.table.setItem(i, 0, QTableWidgetItem(data['ay_isimleri'][i].upper()))
+            # Bu demo verisidir - hesaplama mantığına göre basitleştirildi
+            self.table.setItem(i, 1, QTableWidgetItem(f"{data['toplam_prim']/12:,.0f}"))
+            self.table.setItem(i, 2, QTableWidgetItem(f"{(iade/max(0.01,oran)):,.0f}"))
+            self.table.setItem(i, 3, QTableWidgetItem(f"{iade:,.0f}"))
+            durum = "Ödendi" if i < datetime.now().month else "Bekliyor"
+            self.table.setItem(i, 4, QTableWidgetItem(durum))
+            
+        main_layout.addWidget(self.table, 1) # Stretch ekledik
+
+        # Alt Bölüm: Aksiyon Butonları (Yan yana)
+        bottom_layout = QHBoxLayout()
+        bottom_layout.addStretch()
+        
+        btn_start = QPushButton("YENİ HESAPLAMA BAŞLAT")
+        btn_start.setMinimumSize(250, 45)
+        btn_start.setStyleSheet("background-color: #1a3f6f; color: #00d4ff; border: 1px solid #00d4ff;")
+        btn_start.clicked.connect(self.close) # Pratik olarak pencereyi kapatır
+        
+        btn_export = QPushButton("📄 RAPORU DIŞA AKTAR")
+        btn_export.setMinimumSize(250, 45)
+        btn_export.clicked.connect(self._show_export_menu) # Menü açar
+        
+        bottom_layout.addWidget(btn_start)
+        bottom_layout.addWidget(btn_export)
+        main_layout.addLayout(bottom_layout)
+
+    def _show_export_menu(self):
+        menu = QMenu(self)
+        menu.setStyleSheet("""
+            QMenu { background-color: #1b263b; color: #ffffff; border: 1px solid #1e3a5f; }
+            QMenu::item:selected { background-color: #00d4ff; color: #000000; }
+        """)
+        
+        act1 = QAction("🖼️ Resim Olarak Kaydet (PNG)", self)
+        act1.triggered.connect(self._save_as_image)
+        menu.addAction(act1)
+        
+        act2 = QAction("📄 PDF Belgesi Olarak Kaydet", self)
+        act2.triggered.connect(self._save_as_pdf)
+        menu.addAction(act2)
+        
+        act3 = QAction("📋 Metin Olarak Kopyala", self)
+        act3.triggered.connect(self._copy_all)
+        menu.addAction(act3)
+        
+        # Butonun üstünde aç
+        pos = self.sender().mapToGlobal(self.sender().rect().topLeft())
+        pos.setY(pos.y() - menu.sizeHint().height())
+        menu.popup(pos)
+
+    def _save_as_image(self):
+        pixmap = self.grab() # Tüm pencerenin görüntüsünü alır
+        path, _ = QFileDialog.getSaveFileName(self, "Raporu Kaydet", f"Vergi_İadesi_Raporu_{datetime.now().strftime('%Y%m%d_%H%M')}.png", "Resim Dosyası (*.png)")
+        if path:
+            pixmap.save(path, "PNG")
+            QMessageBox.information(self, "Başarılı", "Rapor resim olarak kaydedildi.")
+
+    def _save_as_pdf(self):
+        if not HAS_PRINTER:
+            QMessageBox.warning(self, "Hata", "PDF çıktısı için gerekli bileşenler (QtPrintSupport) bulunamadı.")
+            return
+            
+        path, _ = QFileDialog.getSaveFileName(self, "Raporu Kaydet", f"Vergi_İadesi_Raporu_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf", "PDF Dosyası (*.pdf)")
+        if path:
+            pixmap = self.grab()
+            printer = QPrinter(QPrinter.HighResolution)
+            printer.setOutputFormat(QPrinter.PdfFormat)
+            printer.setOutputFileName(path)
+            printer.setPageMargins(10, 10, 10, 10, QPrinter.Millimeter)
+            
+            painter = QPainter(printer)
+            # Pencereyi PDF sayfasına sığdır
+            rect = painter.viewport()
+            size = pixmap.size()
+            size.scale(rect.size(), Qt.KeepAspectRatio)
+            painter.setViewport(rect.x(), rect.y(), size.width(), size.height())
+            painter.setWindow(pixmap.rect())
+            painter.drawPixmap(0, 0, pixmap)
+            painter.end()
+            
+            QMessageBox.information(self, "Başarılı", "Rapor PDF olarak kaydedildi.")
+
+    def _copy_all(self):
+        # Parent'ın sakladığı ASCII dökümü kopyala
+        txt = self.parent().last_full_result if hasattr(self.parent(), 'last_full_result') else "Veri bulunamadı."
+        QApplication.clipboard().setText(txt)
+        QMessageBox.information(self, "Bilgi", "Hesaplama dökümü panoya kopyalandı.")
 
 
 # ──────────────────────────────────────────────

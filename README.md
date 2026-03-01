@@ -55,7 +55,7 @@ Uygulama, göz yormayan ve premium hissettiren 5 farklı tema seçeneği ile gel
 1. Python'ın yüklü olduğundan emin ol.
 2. Gerekli kütüphaneleri yükle:
    ```bash
-   pip install PyQt5 requests
+   pip install PyQt5 requests PyQtChart
    ```
 3. Uygulamayı başlat:
    ```bash
