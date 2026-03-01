@@ -1707,7 +1707,9 @@ class ResultDetailsDialog(QDialog):
             self.table.setItem(i, 1, QTableWidgetItem(f"{data['toplam_prim']/12:,.0f}"))
             self.table.setItem(i, 2, QTableWidgetItem(f"{(iade/max(0.01,oran)):,.0f}"))
             self.table.setItem(i, 3, QTableWidgetItem(f"{iade:,.0f}"))
-            durum = "Ödendi" if i < datetime.now().month else "Bekliyor"
+            # Durum belirleme: Geçmiş aylar Ödendi, gelecek aylar Bekliyor
+            current_month = datetime.now().month
+            durum = "Ödendi" if i + 1 < current_month else ("Bu Ay" if i + 1 == current_month else "Bekliyor")
             self.table.setItem(i, 4, QTableWidgetItem(durum))
             
         main_layout.addWidget(self.table, 1) # Stretch ekledik
