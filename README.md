@@ -62,6 +62,12 @@ Uygulama, göz yormayan ve premium hissettiren 5 farklı tema seçeneği ile gel
    python calculators.pyw
    ```
 
+### Yöntem 3: Kendin EXE Oluştur
+PyInstaller ile tek dosyalık çalıştırılabilir oluşturabilirsin:
+```bash
+pyinstaller --onefile --noconsole --name "FinansAsistani" calculators.pyw
+```
+
 ---
 
 ## 📜 Lisans
