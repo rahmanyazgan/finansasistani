@@ -1,7 +1,5 @@
 # 🏛️ Finans Asistanı
 
-![Finans Asistanı Logo](assets/tax.png)
-
 **Finans Asistanı**, Python ve PyQt5 kullanılarak geliştirilmiş, modern ve kullanıcı dostu bir masaüstü finansal hesaplama aracıdır. Günlük finansal işlemlerini hızlıca halletmek isteyen kullanıcılar için tasarlanmış geniş kapsamlı özelliklere sahiptir.
 
 ---
@@ -43,6 +41,8 @@ Uygulama, göz yormayan ve premium hissettiren 5 farklı tema seçeneği ile gel
 *   **Hız:** Tüm hesaplamalar yerel kod üzerinde milisaniyeler içinde gerçekleşir.
 
 ![Kur Dönüşümü](assets/currency.png)
+
+![Vergi İadesi](assets/tax.png)
 
 ---
 
