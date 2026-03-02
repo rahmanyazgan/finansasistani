@@ -73,4 +73,4 @@ pyinstaller --onefile --noconsole --name "FinansAsistani" calculators.pyw
 ## 📜 Lisans
 Bu proje geliştirme ve kişisel kullanım amaçlıdır. Verilerin doğruluğu için lütfen resmi finansal kaynakları da kontrol ediniz.
 
-**Geliştirici:** rahman yazgan
+**Geliştirici:** Rahman Yazgan (rahmanyazgan@hotmail.com)
