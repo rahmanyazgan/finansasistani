@@ -1,6 +1,6 @@
 # 🏛️ Finans Asistanı
 
-**Finans Asistanı**, Python ve PyQt5 kullanılarak geliştirilmiş, modern ve kullanıcı dostu bir masaüstü finansal hesaplama aracıdır. Günlük finansal işlemlerini hızlıca halletmek isteyen kullanıcılar için tasarlanmış geniş kapsamlı özelliklere sahiptir.
+**Finans Asistanı**, Python (PyQt5) ile masaüstünde ve React Native (Expo) ile **mobil cihazlarda (Android & iOS)** çalışan, modern ve kullanıcı dostu bir finansal hesaplama aracıdır. Günlük finansal işlemlerini ister bilgisayarında ister cebinde hızlıca halletmek isteyen kullanıcılar için tasarlanmış geniş kapsamlı özelliklere sahiptir.
 
 ---
 
