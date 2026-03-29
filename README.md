@@ -25,12 +25,10 @@
 *   Bir değerden diğerine yüzde kaç değişim olmuştur?
 
 ### 4. 📈 Bileşik Kar Hesaplayıcı
-*   **Yatırım Parametreleri:** İlk yatırım tutarı, aylık düzenli katkı ve yatırım süresi (yıl) girilerek uzun vadeli birikim hesaplanır.
-*   **Kar Oranı & Varyans:** Tahmini yıllık kar oranı (%) belirleyip, varyans aralığı (±%) ile düşük ve yüksek senaryo analizleri yapılabilir.
-*   **Bileşik Frekans:** Günlük, Haftalık, Aylık, 3 Aylık, 6 Aylık veya Yıllık bileşik hesaplama frekansı seçimi.
-*   **Görsel Analiz:** Yıllara göre bakiye gelişimini gösteren interaktif grafik (Bakiye, Toplam Katkı, Düşük/Yüksek senaryolar).
-*   **Özet Kartları:** Nihai Bakiye, Toplam Katkı ve toplam Kar değerlerini tek bakışta gösteren özet kartları.
-*   **Yıllık Döküm Tablosu:** Her yıl için bakiye, toplam katkı ve kazanılan kar değerlerini detaylı tablo halinde görüntüleme.
+*   İlk yatırım, aylık katkı ve süre belirleyerek uzun vadeli birikim simülasyonu.
+*   Varyans aralığı (±%) ile düşük ve yüksek senaryo karşılaştırması.
+*   Günlük, Haftalık, Aylık, 3 Aylık, 6 Aylık veya Yıllık bileşik frekans seçimi.
+*   Yıllara göre bakiye gelişim grafiği ve detaylı yıllık döküm tablosu.
 
 ---
 
