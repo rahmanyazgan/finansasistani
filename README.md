@@ -56,8 +56,9 @@ Uygulama, göz yormayan ve premium hissettiren 5 farklı tema seçeneği ile gel
 
 ## 📦 Kurulum ve Çalıştırma
 
-### Yöntem 1: Doğrudan .exe (Windows)
-`dist/FinansAsistani.exe` dosyasını indirip başka hiçbir kurulum yapmadan doğrudan çalıştırabilirsin.
+### Yöntem 1: Doğrudan Kurulum (Hazır Paketler)
+*   💻 **Windows (.exe):** `dist/FinansAsistani.exe` dosyasını indirip hiçbir kurulum yapmadan doğrudan çalıştırabilirsin.
+*   📱 **Android (.apk):** `mobile/dist/FinansAsistani.apk` dosyasını indirip telefonuna kurarak mobil sürümü anında deneyimleyebilirsin.
 
 ### Yöntem 2: Python ile (Kaynak Koddan)
 1. Python'ın yüklü olduğundan emin ol.
