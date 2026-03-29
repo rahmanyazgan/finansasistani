@@ -1,8 +1,6 @@
 # Build and Distribution
 build/
-dist/
 __pycache__/
-*.exe
 *.spec
 
 # User Settings and Cache
